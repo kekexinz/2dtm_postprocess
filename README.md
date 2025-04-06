@@ -12,9 +12,7 @@ cd 2dtm_postporcess
 pip install -e . # editable mode
 ```
 
-### 📦 Full Example
-
-## Usage
+## 📦 Usage
 
 ### `extract-particles`
 Extract initial particle peaks from 2DTM search.
