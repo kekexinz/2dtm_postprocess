@@ -24,9 +24,8 @@ extract-particles \
 --tm_job_id 1 \
 --ctf_job_id 1 \
 --d_xy_cutoff 10 \ # min_peak_radius
---exclude_borders 30 \
---metric pval \
---metric_cutoff 8.0 \
+--exclude_borders 30 \ # avoid finding partial particles near the edge
+--metric pval \ # "zscore" or "pval"
 --pixel_size 1.0 \
 --threads 12 \
 --output <output.star>
@@ -43,7 +42,7 @@ filter-particles \
   --tm_job_id 1 \
   --ctf_job_id 1 \
   --pixel_size 1.0 \
-  [--filter_by_image_thickness] \
-  [--thickness_cutoff_ub 500.0] \
+  --filter_by_image_thickness \ # filter out thick images
+  --thickness_cutoff_ub 500.0 \
   --output filtered_output.star
 ```
