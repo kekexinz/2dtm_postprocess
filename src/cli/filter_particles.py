@@ -90,14 +90,28 @@ def main():
     geodesic_method=args.geodesic_method,
     geodesic_threshold=args.geodesic_threshold
     )
+    
+    # Save filtered STAR file with updated SCORE (no extra metadata columns)
+    columns_to_keep = [col for col in filtered_df.columns if col not in ("image_thickness", "mean_geodesic_distance")]
+    starfile_df = filtered_df[columns_to_keep]
 
     # Convert filtered DataFrame to lines with empty column
-    filtered_df_star = starfile.add_star_dummy_column(filtered_df)
+    starfile_df_star = starfile.add_star_dummy_column(starfile_df)
 
     # Write output with headers
     header_lines = starfile.read_tm_package_starfile_header()  # provide default STAR header
-    starfile.write_starfile_with_headers(args.output, header_lines, filtered_df_star)
+    starfile.write_starfile_with_headers(args.output, header_lines, starfile_df_star)
     print(f"[INFO] Filtered data saved to {args.output}")
+    
+    # Extract relevant metadata
+    meta_df = filtered_df[["ORIGINAL_IMAGE_FILENAME", "ORIGX", "ORIGY", "image_thickness", "mean_geodesic_distance"]].copy()
+    meta_df["ORIGINAL_IMAGE_FILENAME"] = meta_df["ORIGINAL_IMAGE_FILENAME"].str.strip("'")
+    meta_df[["ORIGX", "ORIGY", "image_thickness", "mean_geodesic_distance"]] = meta_df[["ORIGX", "ORIGY", "image_thickness", "mean_geodesic_distance"]].round(2)
+
+    # Write to TSV or CSV
+    meta_output = args.output.replace(".star", "_metadata.tsv")
+    meta_df.to_csv(meta_output, sep="\t", index=False)
+    print(f"[INFO] Metadata (image thickness & geodesic) saved to {meta_output}")
 
 if __name__ == "__main__":
     main()

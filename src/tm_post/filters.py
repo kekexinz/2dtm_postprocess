@@ -2,30 +2,21 @@ import numpy as np
 import pandas as pd
 from tm_post.geodesic import calculate_all_geodesic_means
 
-def apply_image_thickness_filter(peaks, df_ctf, df_info, cutoff_lb, cutoff_ub):
-    df_ctf = df_ctf[(df_ctf['SAMPLE_THICKNESS']>cutoff_lb) & (df_ctf['SAMPLE_THICKNESS']<cutoff_ub)]
-    filenames = df_info[df_info['IMAGE_ASSET_ID'].isin(df_ctf['IMAGE_ASSET_ID'].values)]['FILENAME']
-    filenames = [f"'{filename}'" for filename in filenames]
-    peaks_filtered = peaks[peaks['ORIGINAL_IMAGE_FILENAME'].isin(filenames)]
-    return peaks_filtered
-
-def apply_angular_invariance_filter(df, mean_geodesic_array, method='quantile', threshold=0.95):
+def get_thickness_lookup(df_ctf, df_info):
     """
-    Filter rows in df based on geodesic distance.
-    - method='quantile': keep rows <= quantile threshold
-    - method='cutoff': keep rows <= fixed distance threshold
+    Create a lookup function for image thickness based on ORIGINAL_IMAGE_FILENAME.
+    Returns a function that takes a filename string and returns the sample thickness.
     """
-    if method == 'quantile':
-        cutoff = np.nanquantile(mean_geodesic_array, threshold)
-    elif method == 'cutoff':
-        cutoff = threshold
-    else:
-        raise ValueError("method must be 'quantile' or 'cutoff'")
-
-    keep_mask = mean_geodesic_array <= cutoff
-    df_filtered = df[keep_mask].reset_index(drop=True)
-    return df_filtered, keep_mask, cutoff
-
+    thickness_map = df_ctf.set_index('IMAGE_ASSET_ID')['SAMPLE_THICKNESS'].to_dict()
+    filename_to_id = df_info.set_index('FILENAME')['IMAGE_ASSET_ID'].to_dict()
+    def lookup(filename):
+        clean_name = filename.strip("'")
+        image_id = filename_to_id.get(clean_name, None)
+        if image_id is not None:
+            return thickness_map.get(image_id, np.nan)
+        return np.nan
+    
+    return lookup
 
 def apply_filter(
     df,
@@ -65,34 +56,50 @@ def apply_filter(
     - Filtered DataFrame.
     - Optionally added columns: 'mean_geodesic_distance'
     """
-    df_filtered = df.copy()
+    df_out = df.copy()
+    df_out["SCORE"] = 0 # Use Score column to flag filtered particles
+
+    kept_mask = pd.Series([True] * len(df_out))
 
     # Basic snr/avg filtering
     if avg_cutoff_lb is not None:
-        df_filtered = df_filtered[df_filtered['AVG'] >= avg_cutoff_lb]
+        kept_mask &= df_out['AVG'] >= avg_cutoff_lb
     
     if snr_cutoff_ub is not None:
-        df_filtered = df_filtered[df_filtered['SNR'] <= snr_cutoff_ub]
+        kept_mask &= df_out["SNR"] <= snr_cutoff_ub
 
-    print(f"[INFO] SNR/AVG filter applied: {len(df_filtered)} particles retained.")
+    print(f"[INFO] SNR/AVG filter applied: {kept_mask.sum()} particles retained.")
 
     # Apply thickness filtering
-    if filter_by_image_thickness and thickness_lb is not None and thickness_ub is not None:
-        df_filtered = apply_image_thickness_filter(df_filtered, df_ctf, df_info, thickness_lb, thickness_ub)
-        print(f"[INFO] Thickness filter applied: {len(df_filtered)} particles retained.")
+    get_thickness = get_thickness_lookup(df_ctf, df_info)    
+    df_out["image_thickness"] = df_out["ORIGINAL_IMAGE_FILENAME"].apply(get_thickness)
 
-    # Apply geodesic distance filtering
+    if filter_by_image_thickness and thickness_lb is not None and thickness_ub is not None:
+        thick_mask = (
+            (df_out["image_thickness"] > thickness_lb) &
+            (df_out["image_thickness"] < thickness_ub)
+        )
+        kept_mask &= thick_mask
+        print(f"[INFO] Thickness filter applied: {kept_mask.sum()} particles retained.")
+
+    # Apply angular invariance filtering
     if filter_by_angular_invariance:
-        print(f"[INFO] Calculating geodesic distances...")
+        print(f"[INFO] Calculating angular variance...")
         geodesic_means = calculate_all_geodesic_means(
-            df_filtered, image_list, psi_list, theta_list, phi_list,
+            df_out, image_list, psi_list, theta_list, phi_list,
             pixel_size, r=geodesic_r, threads=geodesic_threads
         )
-        df_filtered['mean_geodesic_distance'] = geodesic_means
+        df_out['mean_geodesic_distance'] = geodesic_means
 
-        df_filtered, mask, cutoff = apply_angular_invariance_filter(
-            df_filtered, geodesic_means, method=geodesic_method, threshold=geodesic_threshold
-        )
-        print(f"[INFO] Geodesic filter applied: {len(df_filtered)} particles retained.")
+        # Apply filter
+        geodesic_keep_mask = (geodesic_means <=
+                              np.nanquantile(geodesic_means, geodesic_threshold)
+                              if geodesic_method == 'quantile'
+                              else geodesic_means <= geodesic_threshold)
+        kept_mask &= geodesic_keep_mask
+        print(f"[INFO] Geodesic filter applied: {kept_mask.sum()} particles retained.")
+        
+    # Update SCORE column
+    df_out.loc[kept_mask, 'SCORE'] = 1
 
-    return df_filtered
+    return df_out
