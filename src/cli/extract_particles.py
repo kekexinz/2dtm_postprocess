@@ -17,7 +17,7 @@ def parse_arguments():
     
     parser.add_argument('--metric', type=str, default="pval", choices=["pval", "zscore"], help="Metric to use for filtering.")
     parser.add_argument('--metric_cutoff', type=float, default=8.0, help="Selected metric cutoff.")
-    parser.add_argument('--pixel_size', type=float, default=1.0, help="Wanted pixel size in final stack.")
+    parser.add_argument('--pixel_size', type=float, required=True, default=1.0, help="Wanted pixel size in final stack.")
     parser.add_argument('--threads', type=int, default=4, help="Number of threads for parallel processing.")
     
     parser.add_argument('--output', type=str, required=True, help="Path to the output star file.")
