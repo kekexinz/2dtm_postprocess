@@ -38,7 +38,7 @@ def calculate_particle_geodesic_distance(df, image_list, psi_list, theta_list, p
     # Get particle info
     row = df.iloc[peak_number-1]
     x, y = row['ORIGX'] / pixel_size, row['ORIGY'] / pixel_size
-    x, y = int(x), int(y)
+    x, y = int(round(x,1)), int(round(y,1))
     image_name = row['ORIGINAL_IMAGE_FILENAME'].strip("'")
 
     image_idx = image_list.index(image_name)
