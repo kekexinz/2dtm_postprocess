@@ -82,6 +82,13 @@ def load_particle_starfile(file_path):
                       "BTILTX", "BTILTY", "ISHFTX", "ISHFTY", 
                       "ORIGINAL_IMAGE_FILENAME", "ORIGX", "ORIGY"
         ]
+    elif df.shape[1]==24: # from binary 
+        df.columns = ["POS", "PSI", "THETA", "PHI", "SHX", "SHY", "DF1", 
+                      "DF2", "ANGAST", "PSHIFT", "STAT", "OCC", 
+                      "LogP", "SIGMA", "SCORE", "PSIZE", 
+                      "VOLT", "Cs", "AmpC", "BTILTX", "BTILTY",
+                        "ISHFTX", "ISHFTY", "SUBSET",
+        ]
     elif df.shape[1]==29: # from simulator
         df.columns = ["POS", "PSI", "THETA", "PHI", "SHX", "SHY", 
                       "DF1", "DF2", "ANGAST", "PSHIFT", "OCC",
