@@ -12,13 +12,16 @@ def parse_arguments():
     parser.add_argument('--tm_job_id', type=int, required=True, help="Template match job ID.")
     parser.add_argument('--ctf_job_id', type=int, required=True, help="CTF job ID.")
     
-    parser.add_argument('--d_xy_cutoff', type=int, default=10, help="Cutoff for XY distance.")
+    parser.add_argument('--min_peak_radius', type=int, default=10, help="Cutoff for XY distance.")
     parser.add_argument('--exclude_borders', type=int, default=35, help="Exclude borders in the image.")
     
+    parser.add_argument('--local_max_filter', type=str, default="zscore", choices=["zscore", "snr"], help="Local max filter to use.")
     parser.add_argument('--metric', type=str, default="pval", choices=["pval", "zscore"], help="Metric to use for filtering.")
     parser.add_argument('--metric_cutoff', type=float, default=8.0, help="Selected metric cutoff.")
     parser.add_argument('--pixel_size', type=float, required=True, default=1.0, help="Wanted pixel size in final stack.")
     parser.add_argument('--threads', type=int, default=4, help="Number of threads for parallel processing.")
+
+    parser.add_argument('--quadrants', type=int, default=3, help="Number of quadrants to use for filtering.")
     
     parser.add_argument('--output', type=str, required=True, help="Path to the output star file.")
 
@@ -39,6 +42,7 @@ def main():
 
     df_star = extract_particles_from_2dtm_search(
         tm_images=tm_images,
+        local_max_filter=args.local_max_filter,
         metric=args.metric,
         metric_cutoff=args.metric_cutoff,
         pixel_size=args.pixel_size,
@@ -46,8 +50,9 @@ def main():
         df_ctf=df_ctf,
         df_info=df_info,
         ctf_job_id=args.ctf_job_id,
-        min_radius=args.d_xy_cutoff,
+        min_radius=args.min_peak_radius,
         exclude_borders=args.exclude_borders,
+        q=args.quadrants
     )
 
     print("[INFO] Writing STAR file...")

@@ -9,7 +9,7 @@ from tm_post.starfile import convert_peaks_to_star_df
 import concurrent.futures
 from tqdm import tqdm
 
-def return_peaks_for_image(image: TMImage, metric_cutoff, metric="pval", min_radius=10, exclude_borders=35):# -> list[Peak]:
+def return_peaks_for_image(image: TMImage, metric_cutoff, local_max_filter="zscore", metric="pval", min_radius=10, exclude_borders=35, q=3):# -> list[Peak]:
     """Generate peak information for a given image in a database."""
     # Read all maps
     snr_image = read_mrc_file(image.snr_file)
@@ -21,10 +21,11 @@ def return_peaks_for_image(image: TMImage, metric_cutoff, metric="pval", min_rad
     avg_image = read_mrc_file(image.avg_file)
     sd_image = read_mrc_file(image.sd_file)
     
-    peaks_coordinates = peak_local_max(snr_image, min_distance=min_radius, exclude_border=exclude_borders, threshold_abs=0.0)
-    
-    result_peaks = []
-    
+    if local_max_filter == "zscore":
+        peaks_coordinates = peak_local_max(zscore_image, min_distance=min_radius, exclude_border=exclude_borders, threshold_abs=0.0)
+    elif local_max_filter == "snr":
+        peaks_coordinates = peak_local_max(snr_image, min_distance=min_radius, exclude_border=exclude_borders, threshold_abs=0.0)
+        
     # Collect raw values from detected peaks
     peak_data = []
     for (y,x) in peaks_coordinates:
@@ -43,7 +44,7 @@ def return_peaks_for_image(image: TMImage, metric_cutoff, metric="pval", min_rad
         
     # Compute p-values
     df_peaks = pd.DataFrame(peak_data)
-    df_peaks["pval"] = calculate_2dtm_pval(df_peaks["zscore"].values, df_peaks["snr"].values)
+    df_peaks["pval"] = calculate_2dtm_pval(df_peaks["zscore"].values, df_peaks["snr"].values, q=q)
     
     # Filter and create Peak objects
     filtered_peaks = []
@@ -77,6 +78,7 @@ def return_peaks_for_image(image: TMImage, metric_cutoff, metric="pval", min_rad
 
 def extract_particles_from_2dtm_search(
     tm_images, 
+    local_max_filter,
     df_ctf,
     df_info,
     ctf_job_id,
@@ -87,7 +89,8 @@ def extract_particles_from_2dtm_search(
     pixel_size = 1.0,
     min_radius = 10,
     exclude_borders = 35,
-    max_threads = 4
+    max_threads = 4,
+    q = 3,
     ):
     """
     Extract particles (peaks) from a list of TMImage objects in parallel.
@@ -101,10 +104,12 @@ def extract_particles_from_2dtm_search(
             image=image,
             #avg_cutoff=avg_cutoff,
             #snr_cutoff=snr_cutoff,
+            local_max_filter=local_max_filter,
             metric_cutoff=metric_cutoff,
             metric=metric,
             min_radius=min_radius,
-            exclude_borders=exclude_borders
+            exclude_borders=exclude_borders,
+            q=q
         )
         print(f"[INFO] Found {len(peaks)} peaks in image {image.filename}")
 
