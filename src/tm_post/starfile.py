@@ -82,6 +82,20 @@ def load_particle_starfile(file_path):
                       "BTILTX", "BTILTY", "ISHFTX", "ISHFTY", 
                       "ORIGINAL_IMAGE_FILENAME", "ORIGX", "ORIGY"
         ]
+    elif df.shape[1]==24: # from binary 
+        df.columns = ["POS", "PSI", "THETA", "PHI", "SHX", "SHY", "DF1", 
+                      "DF2", "ANGAST", "PSHIFT", "STAT", "OCC", 
+                      "LogP", "SIGMA", "SCORE", "PSIZE", 
+                      "VOLT", "Cs", "AmpC", "BTILTX", "BTILTY",
+                        "ISHFTX", "ISHFTY", "SUBSET",
+        ]
+    elif df.shape[1]==29: # from simulator
+        df.columns = ["POS", "PSI", "THETA", "PHI", "SHX", "SHY", 
+                      "DF1", "DF2", "ANGAST", "PSHIFT", "OCC",
+                      "LogP", "SIGMA", "SCORE", "CHANGE", "PSIZE",
+                      "VOLT", "Cs", "AmpC", "BTILTX", "BTILTY",
+                      "ISHFTX", "ISHFTY", "2DCLS", "TGRP", "PaGRP",
+                      "SUBSET", "PREEXP", "TOTEXP"]
     return df
 
 
@@ -124,7 +138,7 @@ def convert_peaks_to_star_df(peaks,image_id,df_ctf,df_info,ctf_job_id,pixel_size
         "DF1": [round(p.delta_defocus + defocus1,1) for p in peaks],
         "DF2": [round(p.delta_defocus + defocus2,1) for p in peaks],
         "ANGAST": [round(defocus_angle,1) for _ in peaks],
-        "SCORE": [round(p.zscore, 2) for p in peaks],
+        "SCORE": [round(p.pval, 2) for p in peaks],
         "PSIZE": [pixel_size for _ in peaks],
         "VOLT": [round(voltage,1) for _ in peaks],
         "Cs": [round(cs,1) for _ in peaks],
