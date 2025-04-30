@@ -14,7 +14,10 @@ def parse_arguments():
 
     # read particle information from .star file (extract_peaks.py output)
     parser.add_argument('--avg_cutoff_lb', type=float, default=None, help="Lower bound for average cutoff.")
+    parser.add_argument('--sd_cutoff_ub', type=float, default=None, help="Upper bound for SD cutoff.")
+    parser.add_argument('--pval_cutoff_lb', type=float, default=None, help="Lower bound for p-value cutoff.")
     parser.add_argument('--snr_cutoff_ub', type=float, default=None, help="Upper bound for SNR (optional).")
+    parser.add_argument('--snr_cutoff_lb', type=float, default=None, help="Lower bound for SNR (optional).")
     parser.add_argument('--filter_by_image_thickness', action="store_true", help="Use thickness to filter good micrographs? (default: False)")
     parser.add_argument('--thickness_cutoff_lb', type=float, default=None, help="Lower bound for thickness cutoff (A).")
     parser.add_argument('--thickness_cutoff_ub', type=float, default=None, help="Upper bound for thickness cutoff (A).")
@@ -23,6 +26,9 @@ def parse_arguments():
     parser.add_argument('--geodesic_threads', type=int, default=None, help="Number of threads for geodesic computation.")
     parser.add_argument('--geodesic_method', type=str, default=None, help="Method for geodesic filtering ('quantile' or 'cutoff').")
     parser.add_argument('--geodesic_threshold', type=float, default=None, help="Threshold value for geodesic filtering.")
+
+    parser.add_argument('--ctf_fitting_score_lb', type=float, default=None, help="Lower bound for CTF fitting score.")
+    parser.add_argument('--ctf_fitting_score_ub', type=float, default=None, help="Upper bound for CTF fitting score.")
 
     
     parser.add_argument('--output', type=str, required=True, help="Path to the output star file.")
@@ -70,7 +76,7 @@ def main():
         if args.geodesic_threshold is None:
             args.geodesic_threshold = 0.8
 
-    filtered_df = apply_filter(
+    filtered_df, metadata = apply_filter(
     df=df_peaks,
     image_list=image_list,
     psi_list=psi_list,
@@ -80,10 +86,15 @@ def main():
     df_ctf=df_ctf,
     df_info=df_info,
     avg_cutoff_lb=args.avg_cutoff_lb,
+    sd_cutoff_ub=args.sd_cutoff_ub,
+    pval_cutoff_lb=args.pval_cutoff_lb,
     snr_cutoff_ub=args.snr_cutoff_ub,
+    snr_cutoff_lb=args.snr_cutoff_lb,
     filter_by_image_thickness=args.filter_by_image_thickness,
     thickness_lb=args.thickness_cutoff_lb,
     thickness_ub=args.thickness_cutoff_ub,
+    ctf_fitting_score_lb=args.ctf_fitting_score_lb,
+    ctf_fitting_score_ub=args.ctf_fitting_score_ub,
     filter_by_angular_invariance=args.filter_by_angular_invariance,
     geodesic_r=args.geodesic_r,
     geodesic_threads=args.geodesic_threads,
@@ -98,6 +109,9 @@ def main():
     header_lines = starfile.read_tm_package_starfile_header()  # provide default STAR header
     starfile.write_starfile_with_headers(args.output, header_lines, filtered_df_star)
     print(f"[INFO] Filtered data saved to {args.output}")
+
+    metadata_file = args.output.replace(".star", "_metadata.txt")
+    metadata.to_csv(metadata_file, sep="\t", index=False, float_format="%.2f")
 
 if __name__ == "__main__":
     main()
